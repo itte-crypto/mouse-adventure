@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Computer Adventure Live – Pertemuan 1</title>
+<style>
+:root{--bg:#fdf3dc;--ink:#26204a;--card:#fffdf7;--line:#26204a;--org:#f97316;--grn:#16a34a;--sun:#ffc93c;--mute:#6b6590}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px "Trebuchet MS","Comic Sans MS",system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;max-width:960px;margin:0 auto}
+main{max-width:960px;margin:0 auto;padding:0 18px 40px}
+h1{font-size:clamp(28px,6vw,44px);margin:8px 0}h2{font-size:clamp(22px,4.5vw,30px);margin:10px 0}h3{margin:14px 0 6px}
+.sub,.intro{color:var(--mute)}
+button{font:inherit;color:inherit;cursor:pointer}
+.back{background:var(--card);border:3px solid var(--line);border-radius:12px;padding:6px 12px}
+.go{background:var(--sun);color:#26204a;border:3px solid var(--line);border-radius:14px;padding:10px 22px;font-weight:700;box-shadow:0 4px 0 var(--line)}
+.card{background:var(--card);border:3px solid var(--line);border-radius:22px;padding:22px;text-align:center;box-shadow:0 6px 0 var(--line)}
+.pc{background:var(--card);border:3px solid var(--line);border-radius:18px;padding:10px;box-shadow:0 5px 0 var(--line);display:grid;gap:4px;justify-items:center;text-align:center}
+button.pc:hover{transform:translateY(-2px)}
+.pc svg{width:100%;max-width:130px}.pc p{margin:0;font-size:15px}
+.pc.ok{background:#bbf7d0;color:#14532d}.pc.no{background:#fed7aa}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
+.learn{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.bigmouse{width:min(260px,70vw);display:block;margin:10px auto}.bigmouse path{cursor:pointer}
+.f{display:grid;gap:12px;max-width:340px;margin:14px auto}
+.f input,.f select,#tx{display:block;width:100%;font:inherit;padding:10px 12px;border:3px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);margin-top:4px}
+.msg{min-height:30px;font-weight:700;margin:10px 0}.msg.good{color:var(--grn)}.msg.bad{color:var(--org)}
+.tb{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--bg);padding:10px 0;border-bottom:3px solid var(--line);margin-bottom:12px}
+.rc{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.i{display:none}body.id .e{display:none}body.id .i{display:inline}
+</style></head><body>
+<header><b>Computer Adventure Live</b><span><button class="back" id="lg">ID</button> <span id="st"></span></span></header>
+<main id="A"></main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ===== SETTINGS ===== */
+/* Firebase Console > Project settings > Your apps > Web app > salin isi firebaseConfig ke sini */
+const FB={apiKey:'',authDomain:'',databaseURL:'',projectId:'',appId:''};
+const ROOM='lab';            /* satu ruang untuk semua kelas; tekan Reset sebelum kelas berikutnya */
+const TEACHER_CODE='guru1';  /* ganti kode ini */
+/* Firebase Realtime Database > Rules (tahap uji coba):  {"rules":{"r":{".read":true,".write":true}}} */
+
+const $=s=>document.querySelector(s),A=$('#A');
+const bi=(e,i)=>`<span class="e">${e}</span><span class="i">${i}</span>`;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function mouse(hl,cls){const f=s=>hl===s?'#fde047':'#f1f5f9';
+return `<svg viewBox="0 0 100 100" class="${cls||''}"><rect x="28" y="6" width="44" height="88" rx="22" fill="#f1f5f9" stroke="#475569" stroke-width="3"/><path data-s="L" d="M29.5 40V28A20.5 20.5 0 0 1 50 7.5V40Z" fill="${f('L')}" stroke="#475569" stroke-width="2.5"/><path data-s="R" d="M50 7.5A20.5 20.5 0 0 1 70.5 28V40H50Z" fill="${f('R')}" stroke="#475569" stroke-width="2.5"/><rect x="47" y="16" width="6" height="14" rx="3" fill="#475569"/></svg>`}
+const P={
+monitor:{n:'Monitor',f:['The monitor shows pictures and words. It is like the eyes of the computer!','Monitor menampilkan gambar dan tulisan. Seperti mata komputer!'],svg:'<svg viewBox="0 0 100 100"><rect x="8" y="10" width="84" height="58" rx="6" fill="#334155"/><rect x="14" y="16" width="72" height="46" rx="3" fill="#7dd3fc"/><rect x="44" y="68" width="12" height="14" fill="#64748b"/><rect x="28" y="82" width="44" height="7" rx="3" fill="#64748b"/></svg>'},
+cpu:{n:'CPU',f:['The CPU is the brain of the computer. It is where the computer thinks!','CPU adalah otak komputer. Di sinilah komputer berpikir!'],svg:'<svg viewBox="0 0 100 100"><rect x="26" y="6" width="48" height="88" rx="5" fill="#cbd5e1" stroke="#475569" stroke-width="3"/><rect x="34" y="16" width="32" height="5" fill="#64748b"/><rect x="34" y="26" width="32" height="5" fill="#64748b"/><circle cx="50" cy="74" r="7" fill="#22c55e"/></svg>'},
+keyboard:{n:'Keyboard',f:['The keyboard is used to type letters and numbers.','Keyboard dipakai untuk mengetik huruf dan angka.'],svg:`<svg viewBox="0 0 100 100"><rect x="5" y="26" width="90" height="48" rx="6" fill="#e2e8f0" stroke="#475569" stroke-width="3"/>${kb}<rect x="26" y="64" width="48" height="6" rx="2" fill="#94a3b8"/></svg>`},
+mouse:{n:'Mouse',f:['The mouse moves the pointer on the screen and is used to click.','Mouse menggerakkan panah di layar dan dipakai untuk mengklik.'],svg:mouse('')}};
+const KN=['monitor','cpu','keyboard','mouse'];
+const S=[
+ {t:'info',h:bi('Computer Parts and the Mouse','Bagian Komputer dan Mouse'),p:bi('Look at the big screen. Your teacher will lead us. Wait for the next slide!','Lihat layar besar. Guru akan memandu kita. Tunggu slide berikutnya!')},
+ {t:'cards'},
+ ...KN.map(k=>({t:'pick',k})),
+ {t:'btn',s:'L',n:['LEFT','KIRI']},{t:'btn',s:'R',n:['RIGHT','KANAN']},
+ {t:'text',q:bi('Write one sentence: Today I learned ___','Tulis satu kalimat: Hari ini aku belajar ___')}
+];
+let db,me=null,isT=false,cur=0,eye=0,mine={},ans={},online={};
+const R=p=>db.ref('r/'+ROOM+(p?'/'+p:''));
+try{me=JSON.parse(localStorage.cl_me)}catch(e){}
+$('#lg').onclick=()=>{document.body.classList.toggle('id');$('#lg').textContent=document.body.classList.contains('id')?'EN':'ID'};
+
+function slideHTML(s,i){
+ if(s.t=='info')return `<div class="card"><h1>${s.h}</h1><p class="intro">${s.p}</p></div>`;
+ if(s.t=='cards')return `<h2>${bi('Meet 4 computer parts','Kenali 4 bagian komputer')}</h2><div class="learn">${KN.map(k=>`<div class="pc">${P[k].svg}<b>${P[k].n}</b><p>${bi(P[k].f[0],P[k].f[1])}</p></div>`).join('')}</div>`;
+ if(s.t=='pick'){const o=KN.map((_,j)=>KN[(j+i)%4]);return `<h2>${bi('Which one is the <u>'+P[s.k].n+'</u>? Click the picture!','Mana yang <u>'+P[s.k].n+'</u>? Klik gambarnya!')}</h2><div class="grid">${o.map(k=>`<button class="pc" data-v="${k}">${P[k].svg}</button>`).join('')}</div>`}
+ if(s.t=='btn')return `<h2>${bi('Click the <u>'+s.n[0]+'</u> button on the mouse!','Klik tombol <u>'+s.n[1]+'</u> pada mouse!')}</h2>${mouse('','bigmouse')}`;
+ return `<h2>${s.q}</h2>${isT?'':`<textarea id="tx" rows="3" maxlength="160"></textarea><p><button class="go" id="sd">${bi('Send','Kirim')}</button></p>`}`;
+}
+function home(){
+ A.innerHTML=`<h1>${bi('Computer Adventure Live','Petualangan Komputer Langsung')}</h1><p class="sub">${bi('Pertemuan 1 · Computer Parts and the Mouse','Pertemuan 1 · Bagian Komputer dan Mouse')}</p><div class="f"><label>${bi('Class','Kelas')}<select id="kl"><option>3 Aster</option><option>3 Gardenia</option><option>3 Gloxinia</option><option>3 Lavender</option></select></label><label>${bi('Number','Nomor')}<input id="no" type="number" min="1" max="40"></label><label>${bi('Name','Nama')}<input id="nm" maxlength="20"></label><button class="go" id="jn">${bi('Join the lesson','Masuk pelajaran')}</button><p class="msg bad" id="msg"></p></div><p style="text-align:center"><button class="back" id="tg">${bi('For teacher','Untuk guru')}</button></p>`;
+ $('#jn').onclick=()=>{const no=$('#no').value.trim(),nm=$('#nm').value.trim();
+  if(!no||!nm){$('#msg').innerHTML=bi('Please fill in all boxes.','Isi semua kotak ya.');return}
+  const k=$('#kl').value;me={id:(k+'_'+no+'_'+nm).toLowerCase().replace(/[^a-z0-9_]/g,''),kelas:k,nama:no+' '+nm};
+  try{localStorage.cl_me=JSON.stringify(me)}catch(e){}presence();render()};
+ $('#tg').onclick=()=>{if(prompt('Kode guru / Teacher code')===TEACHER_CODE){isT=true;R('a').on('value',s=>{ans=s.val()||{};res()});R('o').on('value',s=>{online=s.val()||{};res()});render()}}
+}
+function presence(){const p=R('o/'+me.id);db.ref('.info/connected').on('value',s=>{if(s.val()){p.onDisconnect().remove();p.set({n:me.nama,k:me.kelas})}})}
+const WT=bi('Wait for your teacher…','Tunggu guru…');
+function fb(ok,s){const c=A.querySelector(`[data-v="${s.k||s.s}"],[data-s="${s.k||s.s}"]`);if(c){c.classList.add('ok');c.setAttribute('fill','#86efac')}
+ $('#msg').className='msg '+(ok?'good':'bad');$('#msg').innerHTML=(ok?bi('⭐ Great job!','⭐ Hebat!'):bi('Not quite. Good try!','Belum tepat. Bagus sudah mencoba!'))+'<br>'+WT}
+function render(){
+ if(!db)return;if(!me&&!isT)return home();
+ const s=S[cur];if(!s)return;
+ if(isT){A.innerHTML=`<div class="tb"><button class="back" id="pv">◀</button><b>${cur+1} / ${S.length}</b><button class="go" id="nx">${bi('Next','Lanjut')} ▶</button><button class="back" id="ey">${['🙈','👀','👁️'][eye]} ${[bi('Hidden','Tertutup'),bi('Answers only','Hanya jawaban'),bi('Names + answers','Nama + jawaban')][eye]}</button><span id="on"></span><button class="back" id="dl">CSV</button><button class="back" id="rz">Reset</button></div><div>${slideHTML(s,cur)}</div><div id="rs"></div>`;
+  const go=n=>{if(n>=0&&n<S.length){eye=0;R('s').set(n)}};
+  $('#pv').onclick=()=>go(cur-1);$('#nx').onclick=()=>go(cur+1);
+  $('#ey').onclick=()=>{eye=(eye+1)%3;render()};
+  $('#rz').onclick=()=>{if(confirm('Hapus semua jawaban dan mulai dari slide 1?')){R('a').remove();eye=0;R('s').set(0)}};
+  $('#dl').onclick=async()=>{const d=(await R('a').get()).val()||{},r=[['kelas','nama','slide','jawaban','benar']];
+   Object.keys(d).forEach(q=>Object.values(d[q]).forEach(x=>r.push([x.k,x.n,+q.slice(1)+1,x.v,x.ok])));
+   const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+r.map(a=>a.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n')],{type:'text/csv'}));l.download='hasil-pertemuan-1.csv';l.click()};
+  res();return}
+ A.innerHTML=`<p class="sub">${esc(me.kelas)} · ${esc(me.nama)} <button class="back" id="ch">${bi('Change','Ganti')}</button></p><div>${slideHTML(s,cur)}</div><p id="msg" class="msg"></p>`;
+ $('#ch').onclick=()=>{R('o/'+me.id).remove();try{localStorage.removeItem('cl_me')}catch(e){}me=null;mine={};render()};
+ const m=mine[cur];
+ if(s.t=='text'){const sd=$('#sd');sd.onclick=()=>{const v=$('#tx').value.trim();if(!v)return;mine[cur]=v;R('a/q'+cur+'/'+me.id).set({n:me.nama,k:me.kelas,v,ok:1});$('#tx').disabled=true;sd.remove();$('#msg').innerHTML=WT};
+  if(m!=null){$('#tx').value=m;$('#tx').disabled=true;sd.remove();$('#msg').innerHTML=WT}}
+ else if(m!=null)fb(m===(s.k||s.s),s);
+}
+A.addEventListener('click',e=>{
+ if(isT||!me)return;const t=e.target.closest('[data-v],[data-s]'),s=S[cur];if(!t||mine[cur]!=null)return;
+ const v=t.dataset.v||t.dataset.s,ok=v===(s.k||s.s);mine[cur]=v;
+ R('a/q'+cur+'/'+me.id).set({n:me.nama,k:me.kelas,v,ok:ok?1:0});fb(ok,s)});
+document.addEventListener('keydown',e=>{if(!isT)return;if(e.key=='ArrowRight'||e.key=='PageDown')$('#nx').click();if(e.key=='ArrowLeft'||e.key=='PageUp')$('#pv').click()});
+function res(){
+ const n=Object.keys(online).length;if($('#on'))$('#on').textContent='👥 '+n;
+ const el=$('#rs');if(!el)return;const s=S[cur];if(s.t=='info'||s.t=='cards'){el.innerHTML='';return}
+ const a=ans['q'+cur]||{},ks=Object.keys(a);
+ let h=`<h3>${bi('Answered','Sudah menjawab')}: ${ks.length} / ${n}</h3>`;
+ if(eye&&s.t!='text'){const c=ks.filter(k=>a[k].ok).length;h+=`<p>✅ ${c} &nbsp; ❌ ${ks.length-c}</p>`}
+ h+='<div class="rc">'+ks.map(k=>{const x=a[k],v=s.t=='text'?esc(x.v):P[x.v]?P[x.v].n:x.v=='L'?'LEFT / KIRI':'RIGHT / KANAN';
+  return `<div class="pc ${eye&&s.t!='text'?(x.ok?'ok':'no'):''}">${eye==2?`<b>${esc(x.k)} ${esc(x.n)}</b>`:''}<span>${eye?v:'✔'}</span></div>`}).join('')+'</div>';
+ el.innerHTML=h}
+if(!FB.apiKey)A.innerHTML='<div class="card"><h2>Firebase belum diatur</h2><p>Isi <b>FB</b> di bagian SETTINGS pada file ini, lalu unggah ulang.</p></div>';
+else{firebase.initializeApp(FB);db=firebase.database();
+ db.ref('.info/connected').on('value',s=>$('#st').textContent=s.val()?'🟢':'🔴');
+ if(me)presence();
+ R('s').on('value',s=>{cur=s.val()||0;eye=0;render()})}
+</script></body></html>
